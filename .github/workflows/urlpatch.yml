@@ -2,12 +2,6 @@ name: Patch Image via URL
 
 on:
   workflow_dispatch:
-    inputs:
-      image_url:
-        description: 'Recovery Image URL'
-        default: 'https://transfer.sh/<file-id>/<file>.img'
-        required: true
-        type: string
 
 jobs:
   process:
@@ -20,33 +14,28 @@ jobs:
     - name: Fetch necessary packages
       run: |
          sudo apt install git wget lz4 tar openssl python3 -y
-         
-    - name: Download recovery image from URL
-      run: |
-         wget ${{github.event.inputs.image_url}}
 
     - name: Start patching script
       run: |
          chmod a+x magiskboot
          chmod a+x patcher-minimal
+         mv a15_recovery-A155FXXS3BXF1.img recovery.img
          ./patcher-minimal
+         rm -rf fragments/ keys/ header.img raw.img output/output.img
+         mv output/output.tar.md5 output/a15_fastboot_recovery.tar.md5
+         mv a24_recovery-A245FXXU5CXE1.img recovery.img
+         ./patcher-minimal
+         mv output/output.tar.md5 output/a24_fastboot_recovery.tar.md5
 
-    - name: Upload patched image files
-      uses: actions/upload-artifact@v4
+    - name: Upload to Release
+      uses: softprops/action-gh-release@v1
       with:
-        path: /home/runner/work/fastboot-patcher/fastboot-patcher/output/*.*
-        name: Patched Recovery Image Bundle
-        if-no-files-found: error
-        retention-days: 15
-        compression-level: 0
-        overwrite: true
-        
-    - name: Upload keys for patched image
-      uses: actions/upload-artifact@v4
-      with:
-        path: /home/runner/work/fastboot-patcher/fastboot-patcher/keys/*.*
-        name: Patched Image Key Bundle
-        if-no-files-found: error
-        retention-days: 15
-        compression-level: 0
-        overwrite: true
+        files: | 
+          output/a15_fastboot_recovery.tar.md5
+          output/a24_fastboot_recovery.tar.md5
+        name: Samsung-MT6789-${{ github.run_id }}
+        tag_name: ${{ github.run_id }}
+        body: |
+          Device: A15 / A24
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
